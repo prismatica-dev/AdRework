@@ -68,10 +68,7 @@ namespace AdRework {
             keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
             keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero);
 
-            SetApplicationVolume(Spotify.Id, originalVolume);
-
-            AdsSkipped++;
-            Console.WriteLine($"Skipped Ad After 5 Seconds. Total: {AdsSkipped}");
+            Console.WriteLine($"Skipped Ad After 5 Seconds");
 
             while (IsAd()) {
                 for (int i = 0; i < 107; i++) // wait up to 5,250ms
@@ -79,6 +76,7 @@ namespace AdRework {
                 if (IsAd()) {
                     keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
                     keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero); }}
+            SetApplicationVolume(Spotify.Id, originalVolume);
             AdManaged = false; }
 
         private static bool IsAd() {

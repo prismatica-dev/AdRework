@@ -39,11 +39,12 @@ namespace AdRework {
                                     return simpleVolume.MasterVolume; }}}} return 0; }
 
         private static bool AdManaged = false;
+        private static int AdsSkipped = 0;
         private static void SkipAd() {
             if (AdManaged) return;
+            AdManaged = true;
             if (Process.GetProcessesByName("Spotify").Length <= 0) { AdManaged = false; return; }
 
-            AdManaged = true;
             Process Spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
 
             const int VK_MEDIA_NEXT_TRACK = 0xB0;
@@ -52,26 +53,39 @@ namespace AdRework {
 
             keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
             keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero);
-            Thread.Sleep(250); // attempt to skip ad after 250ms in the case it doesnt require you to wait 5 seconds
-            
-            string trackInfo = GetSpotifyTrackInfo().ToLower();
-            if (!(trackInfo.Replace(" ", "").StartsWith("advertisement") || 
-                trackInfo.Replace(" ", "") == "advertisement" || 
-                trackInfo == "spotify") && trackInfo.Contains(" - ")) { Console.WriteLine("Instantly Skipped Ad."); Thread.Sleep(105); AdManaged = false; return; }
+
+            for (int i = 0; i < 5; i++) // wait up to 250ms
+                if (IsAd()) Thread.Sleep(50);
+            if (!IsAd()) { Console.WriteLine("Instantly Skipped Ad."); AdManaged = false; return; }
 
             float originalVolume = GetApplicationVolume(Spotify.Id);
 
             SetApplicationVolume(Spotify.Id, 0f); 
-            Thread.Sleep(5350); // wait for 5 seconds before skipping add (+ a few milliseconds to account for loading)
+            for (int i = 0; i < 107; i++) // wait up to 5,250ms
+                if (IsAd()) Thread.Sleep(50);
+            if (!IsAd()) { Console.WriteLine("Ad Already Skipped."); AdManaged = false; return; }
 
             keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
             keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero);
 
             SetApplicationVolume(Spotify.Id, originalVolume);
 
-            Console.WriteLine("Skipped Ad After 5 Seconds.");
-            Thread.Sleep(105); // wait for a few milliseconds before disabling ad management so spotify can register song skip and it isnt fired twice
+            AdsSkipped++;
+            Console.WriteLine($"Skipped Ad After 5 Seconds. Total: {AdsSkipped}");
+
+            while (IsAd()) {
+                for (int i = 0; i < 107; i++) // wait up to 5,250ms
+                    if (IsAd()) Thread.Sleep(50);
+                if (IsAd()) {
+                    keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
+                    keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero); }}
             AdManaged = false; }
+
+        private static bool IsAd() {
+            string trackInfo = GetSpotifyTrackInfo().ToLower();
+            return (trackInfo.Replace(" ", "").StartsWith("advertisement") || 
+                trackInfo.Replace(" ", "") == "advertisement" || 
+                trackInfo == "spotify") && !trackInfo.Contains(" - "); }
 
         private static string GetSpotifyTrackInfo() {
             var proc = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
@@ -80,15 +94,9 @@ namespace AdRework {
             if (string.Equals(proc.MainWindowTitle, "Spotify Free", StringComparison.InvariantCultureIgnoreCase)) return "Paused";
             return proc.MainWindowTitle; }
 
-        private static void AutoAntiAd(object sender, EventArgs e) {
-            string trackInfo = GetSpotifyTrackInfo().ToLower();
-            if (trackInfo.Replace(" ", "").StartsWith("advertisement") || 
-                trackInfo.Replace(" ", "") == "advertisement" || 
-                trackInfo == "spotify")  
-                if (!AdManaged && !trackInfo.Contains(" - ")) SkipAd(); }
+        private static void AutoAntiAd(object sender, EventArgs e) { if (IsAd() && !AdManaged) SkipAd(); }
 
         private static void AdReworkStart() {
-
             Process spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
             Console.WriteLine(spotify.MainWindowTitle);
             IntPtr child = spotify.MainWindowHandle;

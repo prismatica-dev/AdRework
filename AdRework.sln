@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29613.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdRework", "AdRework\AdRework.csproj", "{83962AE4-6551-4626-8894-E326105AC488}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{83962AE4-6551-4626-8894-E326105AC488}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83962AE4-6551-4626-8894-E326105AC488}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83962AE4-6551-4626-8894-E326105AC488}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83962AE4-6551-4626-8894-E326105AC488}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {37CF698F-2DFF-483F-9C70-2E3EE2C2C39A}
+	EndGlobalSection
+EndGlobal

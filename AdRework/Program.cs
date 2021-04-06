@@ -38,7 +38,6 @@ namespace AdRework {
                                 if (sessionControl.ProcessID == ProcessId)
                                     return simpleVolume.MasterVolume; }}}} return 0; }
 
-
         private static bool AdManaged = false;
         private static void SkipAd() {
             if (AdManaged) return;
@@ -58,7 +57,7 @@ namespace AdRework {
             string trackInfo = GetSpotifyTrackInfo().ToLower();
             if (!(trackInfo.Replace(" ", "").StartsWith("advertisement") || 
                 trackInfo.Replace(" ", "") == "advertisement" || 
-                trackInfo == "spotify")) { Console.WriteLine("Instantly Skipped Ad."); Thread.Sleep(65); AdManaged = false; return; }
+                trackInfo == "spotify") && trackInfo.Contains(" - ")) { Console.WriteLine("Instantly Skipped Ad."); Thread.Sleep(105); AdManaged = false; return; }
 
             float originalVolume = GetApplicationVolume(Spotify.Id);
 
@@ -71,7 +70,7 @@ namespace AdRework {
             SetApplicationVolume(Spotify.Id, originalVolume);
 
             Console.WriteLine("Skipped Ad After 5 Seconds.");
-            Thread.Sleep(65); // wait for a few milliseconds before disabling ad management so spotify can register song skip and it isnt fired twice
+            Thread.Sleep(105); // wait for a few milliseconds before disabling ad management so spotify can register song skip and it isnt fired twice
             AdManaged = false; }
 
         private static string GetSpotifyTrackInfo() {
@@ -86,7 +85,7 @@ namespace AdRework {
             if (trackInfo.Replace(" ", "").StartsWith("advertisement") || 
                 trackInfo.Replace(" ", "") == "advertisement" || 
                 trackInfo == "spotify")  
-                if (!AdManaged) SkipAd(); }
+                if (!AdManaged && !trackInfo.Contains(" - ")) SkipAd(); }
 
         private static void AdReworkStart() {
 

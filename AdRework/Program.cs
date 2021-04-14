@@ -12,6 +12,7 @@ namespace AdRework {
     static class Program {
         [STAThread]
         static void Main() { AdReworkStart(); }
+        public enum SpotifyAdStatus { None, Ad, Unknown }
         
         [DllImport("user32.dll", SetLastError = true)]
         private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, IntPtr extraInfo);
@@ -41,7 +42,7 @@ namespace AdRework {
 
         private static bool AdManaged = false;
         private static void SkipAd() {
-            if (!SkipAds && !MuteAds) return;
+            if (!SkipAds && !MuteAds && !BypassAds) return;
             if (AdManaged) return;
             AdManaged = true;
             if (Process.GetProcessesByName("Spotify").Length <= 0) { AdManaged = false; return; }
@@ -52,41 +53,43 @@ namespace AdRework {
             const int KEYEVENTF_EXTENDEDKEY = 0x001;
             const int KEYEVENTF_KEYUP = 0x002;
             
-            if (SkipAds) {
+            if (SkipAds && GetAdStatus() == SpotifyAdStatus.Ad && ImmediateSkip) {
                 keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
                 keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero); }
 
-            for (int i = 0; i < 5; i++) // wait up to 250ms
-                if (IsAd()) Thread.Sleep(50);
-            if (!IsAd()) { Console.WriteLine("Instantly Skipped Ad."); AdManaged = false; return; }
+            for (int i = 0; i < 5; i++) // wait up to ~250ms
+                if (GetAdStatus() == SpotifyAdStatus.Ad) Thread.Sleep(50);
+            if (GetAdStatus() == SpotifyAdStatus.None) { Console.WriteLine("Instantly Skipped Ad."); AdManaged = false; return; }
 
             float originalVolume = GetApplicationVolume(Spotify.Id);
-            
-            if (MuteAds) SetApplicationVolume(Spotify.Id, 0f); 
-            for (int i = 0; i < 107; i++) // wait up to 5,250ms
-                if (IsAd()) Thread.Sleep(50);
-            if (!IsAd()) { Console.WriteLine("Ad Already Skipped."); AdManaged = false; return; }
+            if (originalVolume <= 0) originalVolume = FallbackVolume;
+            bool unknown = SpotifyAdStatus.Unknown == GetAdStatus();
 
-            if (SkipAds) {
+            if (MuteAds || (unknown && BypassAds)) SetApplicationVolume(Spotify.Id, 0f); 
+            for (int i = 0; i < 107; i++) // wait up to ~5,250ms
+                if (GetAdStatus() != SpotifyAdStatus.None) Thread.Sleep(50);
+            if (GetAdStatus() == SpotifyAdStatus.None) { Console.WriteLine("Ad Already Skipped."); AdManaged = false; return; }
+
+            if (SkipAds && GetAdStatus() == SpotifyAdStatus.Ad) {
                 keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
                 keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero); }
 
             Console.WriteLine($"Skipped Ad After 5 Seconds");
 
-            while (IsAd()) {
+            while (GetAdStatus() != SpotifyAdStatus.None) {
                 for (int i = 0; i < 107; i++) // wait up to 5,250ms
-                    if (IsAd()) Thread.Sleep(50);
-                if (IsAd() && MuteAds) {
+                    if (GetAdStatus() != SpotifyAdStatus.None) Thread.Sleep(50);
+                if (GetAdStatus() == SpotifyAdStatus.Ad && SkipAds) {
                     keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
                     keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero); }}
-            if (MuteAds) SetApplicationVolume(Spotify.Id, originalVolume);
+            if (MuteAds || (unknown && BypassAds)) SetApplicationVolume(Spotify.Id, originalVolume);
             AdManaged = false; }
 
-        private static bool IsAd() {
+        private static SpotifyAdStatus GetAdStatus() {
             string trackInfo = GetSpotifyTrackInfo().ToLower();
-            return (trackInfo.Replace(" ", "").StartsWith("advertisement") || 
+            return ((trackInfo.Replace(" ", "").StartsWith("advertisement") || 
                 trackInfo.Replace(" ", "") == "advertisement" || 
-                trackInfo == "spotify") && !trackInfo.Contains(" - "); }
+                trackInfo == "spotify") && !trackInfo.Contains(" - "))?SpotifyAdStatus.Ad:(trackInfo == "Paused / Unknown")?SpotifyAdStatus.Unknown:SpotifyAdStatus.None; }
 
         private static string GetSpotifyTrackInfo() {
             // get spotify process
@@ -94,7 +97,7 @@ namespace AdRework {
 
             // get track info from window title
             if (proc == null) return "Closed";
-            if (string.Equals(proc.MainWindowTitle, "Spotify Free", StringComparison.InvariantCultureIgnoreCase)) return "Paused";
+            if (string.Equals(proc.MainWindowTitle, "Spotify Free", StringComparison.InvariantCultureIgnoreCase)) return "Paused / Unknown";
             return proc.MainWindowTitle; }
 
         private static void CreateShortcut() { 
@@ -109,7 +112,7 @@ namespace AdRework {
                     string icon = app.Replace('\\', '/');
                     writer.WriteLine("IconFile=" + icon); }} catch(Exception) {}}
 
-        private static void AutoAntiAd(object sender, EventArgs e) { if (IsAd() && !AdManaged) SkipAd(); }
+        private static void AutoAntiAd(object sender, EventArgs e) { if (GetAdStatus() != SpotifyAdStatus.None && !AdManaged) SkipAd(); }
 
         private static string GetBetween(string Source, string Start, string End) {
             int StartI, EndI;
@@ -123,8 +126,22 @@ namespace AdRework {
                 else return ""; }
             else return ""; }
 
-        private static bool SkipAds = true;
-        private static bool MuteAds = true;
+        // config settings
+        private static bool SkipAds = true;     
+        private static bool MuteAds = true;     
+
+        // bypass ads is whether spotify should be muted when no song name is returned, its not safe to skip here as it will break pausing songs
+        private static bool BypassAds = true;
+
+        // immediate skip is more stable, however if you are annoyed by the 'you can skip this ad in 5 seconds' banner disabling this should prevent it
+        private static bool ImmediateSkip = true;
+
+        // if the program should access the registry to try and start at startup
+        private static bool RegistryStartup = true;
+
+        // fallback volume is the volume spotify should be set to if an error ever occurs and spotify gets stuck at no volume
+        private static int FallbackVolume = 50;
+
         private static void LoadConfiguration() {
             try {
                 string AppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -132,26 +149,41 @@ namespace AdRework {
                 if (!Directory.Exists($"{AppData}\\dmbk")) Directory.CreateDirectory($"{AppData}\\dmbk");
                 if (!Directory.Exists($"{AppData}\\dmbk\\AdRework")) Directory.CreateDirectory($"{AppData}\\dmbk\\AdRework");
                 if (!File.Exists($"{AppData}\\dmbk\\AdRework\\config.ini")) { 
-                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipsAds='True'\nMuteAds='True'");
+                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nFallbackVolume='50'");
                     return; }
 
-                string config = File.ReadAllText($"{AppData}\\dmbk\\AdRework\\config.ini");
-                SkipAds = bool.Parse(GetBetween($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='", "'"));
-                MuteAds = bool.Parse(GetBetween($"{AppData}\\dmbk\\AdRework\\config.ini", "MuteAds='", "'"));
-            } catch (Exception) { 
-                try { File.WriteAllText($"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\dmbk\\AdRework\\ErrorLog.txt", $"failed to load config ({DateTime.Now})"); } catch (Exception) {}}}
+                try {
+                    string config = File.ReadAllText($"{AppData}\\dmbk\\AdRework\\config.ini");
+
+                    SkipAds = bool.Parse(GetBetween(config, "SkipAds='", "'"));
+                    MuteAds = bool.Parse(GetBetween(config, "MuteAds='", "'"));
+                    BypassAds = bool.Parse(GetBetween(config, "BypassAds='", "'"));
+                    ImmediateSkip = bool.Parse(GetBetween(config, "ImmediateAds='", "'"));
+                    RegistryStartup = bool.Parse(GetBetween(config, "RegistryStartup='", "'"));
+                    FallbackVolume = Convert.ToInt32(GetBetween(config, "FallbackVolume='", "'"));  }
+                catch (Exception) { // if reading config fails, reset it
+                    Console.WriteLine("failed to read config!");
+                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "# CONFIG RESET DUE TO LOADING ERROR\nSkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nFallbackVolume='50'"); }
+            } catch (Exception) {}}
+
+        private static void IntegrityCheck(object sender, EventArgs e) { 
+            Process Spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
+            if (GetAdStatus() == SpotifyAdStatus.None && GetApplicationVolume(Spotify.Id) <= 0) SetApplicationVolume(Spotify.Id, FallbackVolume); }
 
         private static void AdReworkStart() {
-            // start timer checking for ads every 50ms
-            Timer timer = new Timer(50); timer.Elapsed += AutoAntiAd; timer.AutoReset = true; timer.Start();
-
             // load config
             LoadConfiguration();
+            if (!SkipAds && !MuteAds && !BypassAds) Process.GetCurrentProcess().Kill(); // terminate if it has nothing to do
+
+            // start timer checking for ads every 50ms
+            Timer timer = new Timer(50); timer.Elapsed += AutoAntiAd; timer.AutoReset = true; timer.Start();
+            Timer integritycheck = new Timer(120); integritycheck.Elapsed += IntegrityCheck; integritycheck.AutoReset = true; integritycheck.Start();
 
             // set program to start with windows
             CreateShortcut();
-            try { using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true)) {
-                key.SetValue("AdRework", System.Reflection.Assembly.GetExecutingAssembly().Location); }} catch (Exception) {}
+            if (RegistryStartup)
+                try { using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true)) {
+                    key.SetValue("AdRework", System.Reflection.Assembly.GetExecutingAssembly().Location); }} catch (Exception) {}
 
             // keep thread alive indefinetly
             Thread.Sleep(-1); }}}

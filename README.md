@@ -9,6 +9,12 @@ Remove spotify ads by seamlessly and automatically muting and skipping them!
 * Configurable Settings
 
 ## Troubleshooting
+### It ain't openin
+if it isn't opening and you are not using a custom configuration file (or you are with ForceRun enabled) then chances are you are missing the redistributables to be able to run this software, please select one below that is suitable for your system
+* x86: [vc_redist.x86.exe](https://aka.ms/vs/16/release/vc_redist.x86.exe) (32-bit)
+* x64: [vc_redist.x64.exe](https://aka.ms/vs/16/release/vc_redist.x64.exe) (64-bit)
+* ARM64: [vc_redist.arm64.exe](https://aka.ms/vs/16/release/VC_redist.arm64.exe)
+
 ### I can't hear normal songs in Spotify!
 as of version 0.2.1, this should **NEVER** occur unless you have set the fallbackvolume in the configuration to 0!
 this will almost **ALWAYS** occur on version 0.2.0 due to a bug with with fallbackvolume
@@ -30,16 +36,16 @@ in either of these circumstances, AdRework has crashed! make sure you check your
 ## Configuration Editing
 AdRework creates a folder within your user's Roaming AppData folder (%AppData%\dmbk\AdRework) upon first startup.
 In this folder you will find config.ini containing the following settings:
-#### SkipAds='True'
-#### MuteAds='True'
-#### BypassAds='True'
-#### ImmediateSkip='True'
-#### RegistryStartup='True'
-#### ForceRun='False'
-#### FallbackVolume='50'
-#### AdInterval='100'
-#### IntegrityInterval='450'
-You can modify these values to either true or false (except FallbackVolume requiring an integer value between 0 - 100 as well as AdInterval and IntegrityInterval requiring a valid 32-bit signed integer above 0), disabling SkipAds, MuteAds and AdBypass will cause the program to almost instantly terminate whenever started unless ForceRun is set to true.
+* SkipAds='True'
+* MuteAds='True'
+* BypassAds='True'
+* ImmediateSkip='True'
+* RegistryStartup='True'
+* ForceRun='False'
+* FallbackVolume='50'
+* AdInterval='100'
+* IntegrityInterval='450'
+#### You can modify these values to either true or false (except FallbackVolume requiring an integer value between 0 - 100 as well as AdInterval and IntegrityInterval requiring a valid 32-bit signed integer above 0), disabling SkipAds, MuteAds and AdBypass will cause the program to almost instantly terminate whenever started unless ForceRun is set to true.
 
 ### Skip Ads / Mute Ads
 specifies if AdRework should skip/mute ads respectively
@@ -64,10 +70,10 @@ if bypass ads, skip ads and mute ads are all disabled then the program will imme
 
 #### It is my dream and life goal to run Version 0.2.0, however it's always muted, what can I do to restore it to a usable, but still buggy state?
 set your configuration file to the following:
-##### SkipAds='True'
-##### MuteAds='True'
-##### BypassAds='False'
-##### ImmediateSkip='True'
-##### RegistryStartup='True'
-##### FallbackVolume='1'
-the adbypass wont do anything in this version and fallback volume must be set to 1 as it specifies 100% in 0.2.0
+* SkipAds='True'
+* MuteAds='True'
+* BypassAds='False'
+* ImmediateSkip='True'
+* RegistryStartup='True'
+* FallbackVolume='1'
+##### the adbypass wont do anything in this version and fallback volume must be set to 1 as it specifies 100% in 0.2.0

@@ -142,6 +142,14 @@ namespace AdRework {
         // fallback volume is the volume spotify should be set to if an error ever occurs and spotify gets stuck at no volume
         private static float FallbackVolume = 100f;
 
+        // if AdRework should always run all functions even if all related settings are disabled (more of a debug setting)
+        private static bool ForceRun = false;
+
+        // ms interval AdRework should check for ads at
+        private static int AdInterval = 100;
+        // ms interval AdRework should perform an 'integrity check' at
+        private static int IntegrityInterval = 450;
+
         private static void LoadConfiguration() {
             try {
                 string AppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -149,7 +157,7 @@ namespace AdRework {
                 if (!Directory.Exists($"{AppData}\\dmbk")) Directory.CreateDirectory($"{AppData}\\dmbk");
                 if (!Directory.Exists($"{AppData}\\dmbk\\AdRework")) Directory.CreateDirectory($"{AppData}\\dmbk\\AdRework");
                 if (!File.Exists($"{AppData}\\dmbk\\AdRework\\config.ini")) { 
-                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nFallbackVolume='50'");
+                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nFallbackVolume='50'\nAdInterval='100'\nIntegrityInterval='450'");
                     return; }
 
                 try {
@@ -160,27 +168,29 @@ namespace AdRework {
                     BypassAds = bool.Parse(GetBetween(config, "BypassAds='", "'"));
                     ImmediateSkip = bool.Parse(GetBetween(config, "ImmediateSkip='", "'"));
                     RegistryStartup = bool.Parse(GetBetween(config, "RegistryStartup='", "'"));
-                    FallbackVolume = Convert.ToInt32(GetBetween(config, "FallbackVolume='", "'")); }
+                    ForceRun = bool.Parse(GetBetween(config, "ForceRun'", "'"));
+                    FallbackVolume = Convert.ToInt32(GetBetween(config, "FallbackVolume='", "'"));
+                    AdInterval = Convert.ToInt32(GetBetween(config, "AdInterval='", "'"));
+                    IntegrityInterval = Convert.ToInt32(GetBetween(config, "IntegrityInterval='", "'")); }
                 catch (Exception) { // if reading config fails, reset it
                     Console.WriteLine("failed to read config!");
-                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "# CONFIG RESET DUE TO LOADING ERROR\nSkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nFallbackVolume='50'"); }
+                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nFallbackVolume='50'\nAdInterval='100'\nIntegrityInterval='450'"); }
             } catch (Exception) {}}
 
         private static void IntegrityCheck(object sender, EventArgs e) { 
             Process Spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
-            Console.WriteLine(GetApplicationVolume(Spotify.Id));
             if (GetAdStatus() == SpotifyAdStatus.None && GetApplicationVolume(Spotify.Id) <= 0) SetApplicationVolume(Spotify.Id, FallbackVolume / 100); }
 
         private static void AdReworkStart() {
             // load config
             LoadConfiguration();
-            if (!SkipAds && !MuteAds && !BypassAds) Process.GetCurrentProcess().Kill(); // terminate if it has nothing to do
+            if (!SkipAds && !MuteAds && !BypassAds && !ForceRun) Process.GetCurrentProcess().Kill(); // terminate if it has nothing to do
 
             // start timer checking for ads every 100ms
-            Timer timer = new Timer(100); timer.Elapsed += AutoAntiAd; timer.AutoReset = true; timer.Start();
+            Timer timer = new Timer(AdInterval); timer.Elapsed += AutoAntiAd; timer.AutoReset = true; timer.Start();
             // make sure program isnt muted during songs every 235ms
-            if (FallbackVolume > 0) {
-                Timer integritycheck = new Timer(235); integritycheck.Elapsed += IntegrityCheck; integritycheck.AutoReset = true; integritycheck.Start(); }
+            if (FallbackVolume > 0 || ForceRun) {
+                Timer integritycheck = new Timer(IntegrityInterval); integritycheck.Elapsed += IntegrityCheck; integritycheck.AutoReset = true; integritycheck.Start(); }
 
             // set program to start with windows
             CreateShortcut();

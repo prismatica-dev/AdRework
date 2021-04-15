@@ -10,7 +10,8 @@ Remove spotify ads by seamlessly and automatically muting and skipping them!
 
 ## Troubleshooting
 ### I can't hear normal songs in Spotify!
-as of version 0.2.0, this should **NEVER** occur unless you have set the fallbackvolume in the configuration to 0!
+as of version 0.2.1, this should **NEVER** occur unless you have set the fallbackvolume in the configuration to 0!
+this will almost **ALWAYS** occur on version 0.2.0 due to a bug with with fallbackvolume
 
 ~this is a very rare bug that may occur where AdRework never unmutes the program after an ad, to fix this just go to the volume mixer and turn it back up again. If it is happening consistently then change the Mute Ads setting in the config file to false.~
 

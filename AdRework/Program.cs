@@ -19,7 +19,6 @@ namespace AdRework {
         private static AudioSessionManager2 GetDefaultAudioSessionManager2(DataFlow dataFlow) {
             using (var enumerator = new MMDeviceEnumerator()) {
                 using (var device = enumerator.GetDefaultAudioEndpoint(dataFlow, Role.Multimedia)) {
-                    Console.WriteLine("DefaultDevice: " + device.FriendlyName);
                     var sessionManager = AudioSessionManager2.FromMMDevice(device);
                     return sessionManager; }}}
 
@@ -55,14 +54,14 @@ namespace AdRework {
             
             if (SkipAds && GetAdStatus() == SpotifyAdStatus.Ad && ImmediateSkip) {
                 keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
-                keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero); }
+                keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_KEYUP, IntPtr.Zero);
 
-            for (int i = 0; i < 5; i++) // wait up to ~250ms
-                if (GetAdStatus() == SpotifyAdStatus.Ad) Thread.Sleep(50);
-            if (GetAdStatus() == SpotifyAdStatus.None) { Console.WriteLine("Instantly Skipped Ad."); AdManaged = false; return; }
+                for (int i = 0; i < 5; i++) // wait up to ~250ms
+                    if (GetAdStatus() == SpotifyAdStatus.Ad) Thread.Sleep(50);
+                if (GetAdStatus() == SpotifyAdStatus.None) { Console.WriteLine("Instantly Skipped Ad."); AdManaged = false; return; }}
 
             float originalVolume = GetApplicationVolume(Spotify.Id);
-            if (originalVolume <= 0) originalVolume = FallbackVolume;
+            if (originalVolume <= 0) originalVolume = FallbackVolume / 100;
             bool unknown = SpotifyAdStatus.Unknown == GetAdStatus();
 
             if (MuteAds || (unknown && BypassAds)) SetApplicationVolume(Spotify.Id, 0f); 
@@ -89,14 +88,14 @@ namespace AdRework {
             string trackInfo = GetSpotifyTrackInfo().ToLower();
             return ((trackInfo.Replace(" ", "").StartsWith("advertisement") || 
                 trackInfo.Replace(" ", "") == "advertisement" || 
-                trackInfo == "spotify") && !trackInfo.Contains(" - "))?SpotifyAdStatus.Ad:(trackInfo == "Paused / Unknown")?SpotifyAdStatus.Unknown:SpotifyAdStatus.None; }
+                trackInfo == "spotify") && !trackInfo.Contains(" - "))?SpotifyAdStatus.Ad:(trackInfo == "paused / unknown")?SpotifyAdStatus.Unknown:SpotifyAdStatus.None; }
 
         private static string GetSpotifyTrackInfo() {
             // get spotify process
             var proc = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
 
             // get track info from window title
-            if (proc == null) return "Closed";
+            if (proc == null) return "Paused / Unknown";
             if (string.Equals(proc.MainWindowTitle, "Spotify Free", StringComparison.InvariantCultureIgnoreCase)) return "Paused / Unknown";
             return proc.MainWindowTitle; }
 
@@ -112,7 +111,8 @@ namespace AdRework {
                     string icon = app.Replace('\\', '/');
                     writer.WriteLine("IconFile=" + icon); }} catch(Exception) {}}
 
-        private static void AutoAntiAd(object sender, EventArgs e) { if (GetAdStatus() != SpotifyAdStatus.None && !AdManaged) SkipAd(); }
+        private static void AutoAntiAd(object sender, EventArgs e) { 
+            if (GetAdStatus() != SpotifyAdStatus.None && !AdManaged) SkipAd(); }
 
         private static string GetBetween(string Source, string Start, string End) {
             int StartI, EndI;
@@ -140,7 +140,7 @@ namespace AdRework {
         private static bool RegistryStartup = true;
 
         // fallback volume is the volume spotify should be set to if an error ever occurs and spotify gets stuck at no volume
-        private static int FallbackVolume = 50;
+        private static float FallbackVolume = 100f;
 
         private static void LoadConfiguration() {
             try {
@@ -158,9 +158,9 @@ namespace AdRework {
                     SkipAds = bool.Parse(GetBetween(config, "SkipAds='", "'"));
                     MuteAds = bool.Parse(GetBetween(config, "MuteAds='", "'"));
                     BypassAds = bool.Parse(GetBetween(config, "BypassAds='", "'"));
-                    ImmediateSkip = bool.Parse(GetBetween(config, "ImmediateAds='", "'"));
+                    ImmediateSkip = bool.Parse(GetBetween(config, "ImmediateSkip='", "'"));
                     RegistryStartup = bool.Parse(GetBetween(config, "RegistryStartup='", "'"));
-                    FallbackVolume = Convert.ToInt32(GetBetween(config, "FallbackVolume='", "'"));  }
+                    FallbackVolume = Convert.ToInt32(GetBetween(config, "FallbackVolume='", "'")); }
                 catch (Exception) { // if reading config fails, reset it
                     Console.WriteLine("failed to read config!");
                     File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "# CONFIG RESET DUE TO LOADING ERROR\nSkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nFallbackVolume='50'"); }
@@ -168,16 +168,19 @@ namespace AdRework {
 
         private static void IntegrityCheck(object sender, EventArgs e) { 
             Process Spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
-            if (GetAdStatus() == SpotifyAdStatus.None && GetApplicationVolume(Spotify.Id) <= 0) SetApplicationVolume(Spotify.Id, FallbackVolume); }
+            Console.WriteLine(GetApplicationVolume(Spotify.Id));
+            if (GetAdStatus() == SpotifyAdStatus.None && GetApplicationVolume(Spotify.Id) <= 0) SetApplicationVolume(Spotify.Id, FallbackVolume / 100); }
 
         private static void AdReworkStart() {
             // load config
             LoadConfiguration();
             if (!SkipAds && !MuteAds && !BypassAds) Process.GetCurrentProcess().Kill(); // terminate if it has nothing to do
 
-            // start timer checking for ads every 50ms
-            Timer timer = new Timer(50); timer.Elapsed += AutoAntiAd; timer.AutoReset = true; timer.Start();
-            Timer integritycheck = new Timer(120); integritycheck.Elapsed += IntegrityCheck; integritycheck.AutoReset = true; integritycheck.Start();
+            // start timer checking for ads every 100ms
+            Timer timer = new Timer(100); timer.Elapsed += AutoAntiAd; timer.AutoReset = true; timer.Start();
+            // make sure program isnt muted during songs every 235ms
+            if (FallbackVolume > 0) {
+                Timer integritycheck = new Timer(235); integritycheck.Elapsed += IntegrityCheck; integritycheck.AutoReset = true; integritycheck.Start(); }
 
             // set program to start with windows
             CreateShortcut();

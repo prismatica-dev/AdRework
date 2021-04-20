@@ -47,7 +47,7 @@ namespace AdRework {
             if (Process.GetProcessesByName("Spotify").Length <= 0) { AdManaged = false; return; }
 
             Process Spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
-            if (Spotify == null) return;
+            if (Spotify == null) { AdManaged = false; return; }
 
             const int VK_MEDIA_NEXT_TRACK = 0xB0;
             const int KEYEVENTF_EXTENDEDKEY = 0x01;
@@ -113,7 +113,6 @@ namespace AdRework {
                     writer.WriteLine("IconFile=" + icon); }} catch(Exception) {}}
 
         private static void AutoAntiAd(object sender, EventArgs e) { 
-            Console.WriteLine(GetAdStatus());
             if (GetAdStatus() != SpotifyAdStatus.None && !AdManaged) SkipAd(); }
 
         private static string GetBetween(string Source, string Start, string End) {
@@ -181,6 +180,7 @@ namespace AdRework {
 
         private static void IntegrityCheck(object sender, EventArgs e) { 
             Process Spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
+            if (Spotify == null) return;
             if (GetAdStatus() == SpotifyAdStatus.None && GetApplicationVolume(Spotify.Id) <= 0) SetApplicationVolume(Spotify.Id, FallbackVolume / 100); }
 
         private static void AdReworkStart() {

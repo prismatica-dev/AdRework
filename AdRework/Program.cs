@@ -47,10 +47,11 @@ namespace AdRework {
             if (Process.GetProcessesByName("Spotify").Length <= 0) { AdManaged = false; return; }
 
             Process Spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
+            if (Spotify == null) return;
 
             const int VK_MEDIA_NEXT_TRACK = 0xB0;
-            const int KEYEVENTF_EXTENDEDKEY = 0x001;
-            const int KEYEVENTF_KEYUP = 0x002;
+            const int KEYEVENTF_EXTENDEDKEY = 0x01;
+            const int KEYEVENTF_KEYUP = 0x02;
             
             if (SkipAds && GetAdStatus() == SpotifyAdStatus.Ad && ImmediateSkip) {
                 keybd_event(VK_MEDIA_NEXT_TRACK, 0, KEYEVENTF_EXTENDEDKEY, IntPtr.Zero);
@@ -112,6 +113,7 @@ namespace AdRework {
                     writer.WriteLine("IconFile=" + icon); }} catch(Exception) {}}
 
         private static void AutoAntiAd(object sender, EventArgs e) { 
+            Console.WriteLine(GetAdStatus());
             if (GetAdStatus() != SpotifyAdStatus.None && !AdManaged) SkipAd(); }
 
         private static string GetBetween(string Source, string Start, string End) {
@@ -188,7 +190,7 @@ namespace AdRework {
 
             // start timer checking for ads every 100ms
             Timer timer = new Timer(AdInterval); timer.Elapsed += AutoAntiAd; timer.AutoReset = true; timer.Start();
-            // make sure program isnt muted during songs every 235ms
+            // make sure program isnt muted during songs every 450ms
             if (FallbackVolume > 0 || ForceRun) {
                 Timer integritycheck = new Timer(IntegrityInterval); integritycheck.Elapsed += IntegrityCheck; integritycheck.AutoReset = true; integritycheck.Start(); }
 

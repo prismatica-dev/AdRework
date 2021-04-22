@@ -4,12 +4,19 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.IO.Compression;
 using Timer = System.Timers.Timer;
 
 namespace AdRework {
     static class Program {
+        // if u are forking the project set this to your fork so the auto-updater checks your repo!
+        // any files other than AdRework.exe will not be updated automatically
+        private const string repo = "uDMBK/AdRework";
+
         [STAThread]
         static void Main() { AdReworkStart(); }
         public enum SpotifyAdStatus { None, Ad, Unknown }
@@ -102,10 +109,8 @@ namespace AdRework {
 
         private static void CreateShortcut() { 
             try {
-                string deskDir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-
                 using (StreamWriter writer = new StreamWriter($"{Environment.GetFolderPath(Environment.SpecialFolder.Startup)}\\AdRework.url")) {
-                    string app = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                    string app = Assembly.GetExecutingAssembly().Location;
                     writer.WriteLine("[InternetShortcut]");
                     writer.WriteLine("URL=file:///" + app);
                     writer.WriteLine("IconIndex=0");
@@ -151,6 +156,9 @@ namespace AdRework {
         // ms interval AdRework should perform an 'integrity check' at
         private static int IntegrityInterval = 450;
 
+        // if AdRework should Auto-Update
+        private static bool AutoUpdate = true;
+
         private static void LoadConfiguration() {
             try {
                 string AppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -158,7 +166,7 @@ namespace AdRework {
                 if (!Directory.Exists($"{AppData}\\dmbk")) Directory.CreateDirectory($"{AppData}\\dmbk");
                 if (!Directory.Exists($"{AppData}\\dmbk\\AdRework")) Directory.CreateDirectory($"{AppData}\\dmbk\\AdRework");
                 if (!File.Exists($"{AppData}\\dmbk\\AdRework\\config.ini")) { 
-                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nFallbackVolume='50'\nAdInterval='100'\nIntegrityInterval='450'");
+                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nAutoUpdate='True'\nFallbackVolume='100'\nAdInterval='100'\nIntegrityInterval='450'");
                     return; }
 
                 try {
@@ -169,23 +177,68 @@ namespace AdRework {
                     BypassAds = bool.Parse(GetBetween(config, "BypassAds='", "'"));
                     ImmediateSkip = bool.Parse(GetBetween(config, "ImmediateSkip='", "'"));
                     RegistryStartup = bool.Parse(GetBetween(config, "RegistryStartup='", "'"));
+                    AutoUpdate = bool.Parse(GetBetween(config, "AutoUpdate='", "'"));
                     ForceRun = bool.Parse(GetBetween(config, "ForceRun'", "'"));
                     FallbackVolume = Convert.ToInt32(GetBetween(config, "FallbackVolume='", "'"));
                     AdInterval = Convert.ToInt32(GetBetween(config, "AdInterval='", "'"));
                     IntegrityInterval = Convert.ToInt32(GetBetween(config, "IntegrityInterval='", "'")); }
                 catch (Exception) { // if reading config fails, reset it
                     Console.WriteLine("failed to read config!");
-                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nFallbackVolume='50'\nAdInterval='100'\nIntegrityInterval='450'"); }
+                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nAutoUpdate='True'\nFallbackVolume='100'\nAdInterval='100'\nIntegrityInterval='450'"); }
             } catch (Exception) {}}
 
         private static void IntegrityCheck(object sender, EventArgs e) { 
             Process Spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
             if (Spotify == null) return;
+            Console.WriteLine($"spotify volume: {GetApplicationVolume(Spotify.Id):N0} || {GetAdStatus()}");
             if (GetAdStatus() == SpotifyAdStatus.None && GetApplicationVolume(Spotify.Id) <= 0) SetApplicationVolume(Spotify.Id, FallbackVolume / 100); }
+
+        private static string GetLatestTag() {
+            try {
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create($"https://api.github.com/repos/{repo}/releases/latest");
+                request.Method = "GET"; request.UserAgent = "AdRework Auto-Update"; request.Accept = "application/json";
+                StreamReader reader = new StreamReader(request.GetResponse().GetResponseStream());
+
+                return GetBetween(reader.ReadToEnd(), "\"tag_name\":\"", "\""); } catch (Exception e) { Console.WriteLine($"{e.Message}"); } 
+            return ""; }
+
+        private static void UpdateProgram(string TagName) {
+            try {
+                // create install directory
+                Directory.CreateDirectory($"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\Update");
+
+                // ensure that the install directory is empty
+                foreach (FileInfo file in new DirectoryInfo($"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\Update").GetFiles()) file.Delete();
+
+                // download update
+                new WebClient().DownloadFile($"https://github.com/{repo}/releases/download/{TagName}/AdRework.zip", $"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\Update\\AdRework.new.zip");
+
+                // extract update
+                ZipFile.ExtractToDirectory($"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\Update\\AdRework.new.zip", $"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\Update");
+                // delete original zip
+                File.Delete($"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\Update\\AdRework.new.zip");
+
+                // create a batch file to override current version with update then delete itself after 500ms
+                File.WriteAllText($"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\update.bat", $"@echo off\nping 127.0.0.1 -n 1 -w 500> nul\"\nmove \"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\Update\\*.*\" \"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\"\nstart \"\" \"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\AdRework.exe\"\n(goto) 2>nul & del \"%~f0\"");
+
+                // run the batch file and immediately terminate process
+                Process.Start($"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\update.bat");
+                Process.GetCurrentProcess().Kill();
+                } catch (Exception e) { Console.WriteLine($"failed to auto-update due to {e.Message}!"); }}
 
         private static void AdReworkStart() {
             // load config
             LoadConfiguration();
+
+            // update cleanup
+            if (Directory.Exists($"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\Update"))
+                Directory.Delete($"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}\\Update");
+
+            // check for updates
+            if (AutoUpdate) { 
+                string LatestTag = GetLatestTag();
+                if (Assembly.GetExecutingAssembly().GetName().Version < Version.Parse(LatestTag)) UpdateProgram(LatestTag); }
+
             if (!SkipAds && !MuteAds && !BypassAds && !ForceRun) Process.GetCurrentProcess().Kill(); // terminate if it has nothing to do
 
             // start timer checking for ads every 100ms
@@ -198,7 +251,7 @@ namespace AdRework {
             CreateShortcut();
             if (RegistryStartup)
                 try { using (RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true)) {
-                    key.SetValue("AdRework", System.Reflection.Assembly.GetExecutingAssembly().Location); }} catch (Exception) {}
+                    key.SetValue("AdRework", Assembly.GetExecutingAssembly().Location); }} catch (Exception) {}
 
             // keep thread alive indefinetly
             Thread.Sleep(-1); }}}

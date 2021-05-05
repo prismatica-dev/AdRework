@@ -72,7 +72,7 @@ namespace AdRework {
             if (originalVolume <= 0) originalVolume = FallbackVolume / 100;
             bool unknown = SpotifyAdStatus.Unknown == GetAdStatus();
 
-            if (MuteAds || (unknown && BypassAds)) SetApplicationVolume(Spotify.Id, 0f); 
+            if (MuteAds || (unknown && BypassAds)) { SetApplicationVolume(Spotify.Id, 0f); if (MuteAll) foreach (Process sprocess in Process.GetProcessesByName("Spotify")) if (sprocess.Id != Spotify.Id) SetApplicationVolume(sprocess.Id, 0f); }
             for (int i = 0; i < 107; i++) // wait up to ~5,250ms
                 if (GetAdStatus() != SpotifyAdStatus.None) Thread.Sleep(50);
             if (GetAdStatus() == SpotifyAdStatus.None) { Console.WriteLine("Ad Already Skipped."); AdManaged = false; return; }
@@ -159,6 +159,9 @@ namespace AdRework {
         // if AdRework should Auto-Update
         private static bool AutoUpdate = true;
 
+        // if all Spotify processes should be muted when an advert is detected (REQUIRED to mute video ads)
+        private static bool MuteAll = true;
+
         private static void LoadConfiguration() {
             try {
                 string AppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -166,7 +169,7 @@ namespace AdRework {
                 if (!Directory.Exists($"{AppData}\\dmbk")) Directory.CreateDirectory($"{AppData}\\dmbk");
                 if (!Directory.Exists($"{AppData}\\dmbk\\AdRework")) Directory.CreateDirectory($"{AppData}\\dmbk\\AdRework");
                 if (!File.Exists($"{AppData}\\dmbk\\AdRework\\config.ini")) { 
-                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nAutoUpdate='True'\nFallbackVolume='100'\nAdInterval='100'\nIntegrityInterval='450'");
+                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nAutoUpdate='True'\nMuteAll='True'\nFallbackVolume='100'\nAdInterval='100'\nIntegrityInterval='450'");
                     return; }
 
                 try {
@@ -178,19 +181,19 @@ namespace AdRework {
                     ImmediateSkip = bool.Parse(GetBetween(config, "ImmediateSkip='", "'"));
                     RegistryStartup = bool.Parse(GetBetween(config, "RegistryStartup='", "'"));
                     AutoUpdate = bool.Parse(GetBetween(config, "AutoUpdate='", "'"));
-                    ForceRun = bool.Parse(GetBetween(config, "ForceRun'", "'"));
+                    ForceRun = bool.Parse(GetBetween(config, "ForceRun='", "'"));
+                    MuteAll = bool.Parse(GetBetween(config, "MuteAll='", "'"));
                     FallbackVolume = Convert.ToInt32(GetBetween(config, "FallbackVolume='", "'"));
                     AdInterval = Convert.ToInt32(GetBetween(config, "AdInterval='", "'"));
                     IntegrityInterval = Convert.ToInt32(GetBetween(config, "IntegrityInterval='", "'")); }
                 catch (Exception) { // if reading config fails, reset it
                     Console.WriteLine("failed to read config!");
-                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nAutoUpdate='True'\nFallbackVolume='100'\nAdInterval='100'\nIntegrityInterval='450'"); }
+                    File.WriteAllText($"{AppData}\\dmbk\\AdRework\\config.ini", "SkipAds='True'\nMuteAds='True'\nBypassAds='True'\nImmediateSkip='True'\nRegistryStartup='True'\nForceRun='False'\nAutoUpdate='True'\nMuteAll='True'\nFallbackVolume='100'\nAdInterval='100'\nIntegrityInterval='450'"); }
             } catch (Exception) {}}
 
         private static void IntegrityCheck(object sender, EventArgs e) { 
             Process Spotify = Process.GetProcessesByName("Spotify").FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.MainWindowTitle));
             if (Spotify == null) return;
-            Console.WriteLine($"spotify volume: {GetApplicationVolume(Spotify.Id):N0} || {GetAdStatus()}");
             if (GetAdStatus() == SpotifyAdStatus.None && GetApplicationVolume(Spotify.Id) <= 0) SetApplicationVolume(Spotify.Id, FallbackVolume / 100); }
 
         private static string GetLatestTag() {

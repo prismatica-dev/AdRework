@@ -42,7 +42,8 @@ In this folder you will find config.ini containing the following settings:
 * ImmediateSkip='True'
 * RegistryStartup='True'
 * ForceRun='False'
-* FallbackVolume='50'
+* MuteAll='True'
+* FallbackVolume='100'
 * AdInterval='100'
 * IntegrityInterval='450'
 #### You can modify these values to either true or false (except FallbackVolume requiring an integer value between 0 - 100 as well as AdInterval and IntegrityInterval requiring a valid 32-bit signed integer above 0), disabling SkipAds, MuteAds and AdBypass will cause the program to almost instantly terminate whenever started unless ForceRun is set to true.
@@ -59,14 +60,17 @@ disabling this will result in AdRework waiting 5 seconds to skip all and any ads
 ### Registry Startup
 some people dont like AdRework touching the registry. this is understandable and disabling this will disable AdRework attempting to run at startup through the registry (doesn't remove any existing keys created though)
 
+### Force Run
+if bypass ads, skip ads and mute ads are all disabled then the program will immediately terminate. this setting overrides that if set to true and will keep the program running regardless and is currently the only setting set to disabled by default. additionally it will still perform the integrity check if the fallback volume is set to 0%
+
+### Mute All
+if this is set to true, AdRework will attempt to mute **ALL** spotify processes, not just the main one. this is required to mute video ads, and whilst i can't see any issues occuring from this, it's provided as a 'just in case it doesn't work' option
+
 ### Fallback Volume
 this setting is to fix the previously extremely rare bug that would case spotify to be muted during actual music, setting the volume back to a 'fallback' volume instead of being muted. setting this to 0 will disable it however is not recommended to be used with BypassAds on as it will result in spotify being almost always muted
 
 ### Ad + Integrity Check Intervals
 these are integer settings specifying the millisecond interval that AdRework should check for ads at and also check that the program is not muted, by default these values are fine but if you wish to reduce the cpu load further increase the interval at which the integrity check occurs as it can be rather demanding on the system, unlike the ad check which doesn't really cause that much additional load.
-
-### Force Run
-if bypass ads, skip ads and mute ads are all disabled then the program will immediately terminate. this setting overrides that if set to true and will keep the program running regardless and is currently the only setting set to disabled by default. additionally it will still perform the integrity check if the fallback volume is set to 0%
 
 #### It is my dream and life goal to run Version 0.2.0, however it's always muted, what can I do to restore it to a usable, but still buggy state?
 set your configuration file to the following:

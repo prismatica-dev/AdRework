@@ -1,6 +1,6 @@
 # AdRework
 Remove spotify ads by seamlessly and automatically muting and skipping them!
-## [download latest version here](https://github.com/uDMBK/AdRework/releases/latest)
+## [download latest version here](https://github.com/lily-software/AdRework/releases/latest)
 
 ## Features
 * Seamless, Automatic Ad Muting and Skipping

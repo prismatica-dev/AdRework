@@ -1,6 +1,10 @@
-# AdRework
-Remove spotify ads by seamlessly and automatically muting and skipping them!
-## [download latest version here](https://github.com/lily-software/AdRework/releases/latest)
+<div align="center">
+  <h1>/lily.software/ AdRework</h1>
+  <i>Remove spotify ads by seamlessly and automatically muting and skipping them!</i><br>
+  <img src="https://img.shields.io/github/downloads/lily-software/AdRework/total.svg?color=ff69b4&logoColor=white&labelColor=&style=for-the-badge"/>
+</div>
+
+### [download latest version here!](https://github.com/lily-software/AdRework/releases/latest)
 
 ## Features
 * Seamless, Automatic Ad Muting and Skipping
@@ -8,7 +12,7 @@ Remove spotify ads by seamlessly and automatically muting and skipping them!
 * Extremely Small File Size (~2mb Total)
 * Configurable Settings
 
-## Troubleshooting
+## Troubleshooting (overly detailed)
 ### It ain't openin
 if it isn't opening and you are not using a custom configuration file (or you are with ForceRun enabled) then chances are you are missing the redistributables to be able to run this software, please select one below that is suitable for your system
 * x86: [vc_redist.x86.exe](https://aka.ms/vs/16/release/vc_redist.x86.exe) (32-bit)
